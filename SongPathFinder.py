@@ -102,7 +102,8 @@ class SearchSong:
         with youtube_dl.YoutubeDL(ytdl_options) as ydl:
             try:
                 info_dict = ydl.extract_info(songname, download=False)
-                videoID = info_dict["entries"][0]["id"]
+                videoID = info_dict["entries"][0]["id"] # song video ID
+                title = info_dict['entries'][0]['title'] # song video Title
                 youtube_link += videoID
 
                 data = {}
@@ -136,4 +137,4 @@ def main():
         if found == '':
             found = searchObj.YoutubeSearch(songname)
 
-    return found if isinstance(found, tuple) else (None, found)
+    return found if isinstance(found, tuple) else (None, found.split())
