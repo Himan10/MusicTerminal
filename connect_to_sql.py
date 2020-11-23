@@ -39,11 +39,13 @@ class SongDatabase:
                                             AND name='song_info'
                         """)
 
-                        return cursor.fetchone()[0]
+                        return cursor.fetchone()[0] == 1
         return False
 
     def feed_data(self, data: list):
 
+        if data.__sizeof__() == 40:
+            raise Exception(' Playlist Empty ')
         # Create a cursor
         cursor = self.conn.cursor()
         tablename = "song_info"
@@ -62,13 +64,17 @@ class SongDatabase:
         cursor = self.conn.cursor()
         exist = self.isTableExist(cursor)
         if not exist:
-            return 'Doesn\'t Exist'
+            # delete that file if nothing is in it.
+            os.remove(self.dbname)
+            raise Exception("Playlist Table doesn't Exist")
 
         # Get the songs column
         cursor.execute(""" SELECT songs FROM {0}""".format(self.tablename))
         
         # fetch the result
-        print(cursor.fetchall())
+        temp = cursor.fetchall()
 
         # commit the change to database
         self.conn.commit()
+        
+        return temp
