@@ -3,6 +3,8 @@ import threading
 import concurrent.futures
 from SongPathFinder import os
 from SongPathFinder import main
+from connectToSql import SongDatabase
+
 
 exit = threading.Event()
 
@@ -12,6 +14,7 @@ class MusicTerminal:
         return self
 
     def __exit__(self, type, value, traceback):
+        self._player.terminate()
         return isinstance(value, TypeError)
 
     def __init__(self, video: bool, ytdl=True, logging=False):
@@ -25,17 +28,24 @@ class MusicTerminal:
         self._threadExecutable = False
         self.repeat = 0
 
-    def addsong(self, path: str, songs: list, executor):
+    def addsong(self, path: str, songs: list, database: bool, executor):
         """ executor should be an obj of 
         concurrent.futures.ThreadPoolExecutor """
 
-        songs = songs if isinstance(songs, list) else [songs]
-        self.playlist0.extend(songs)
-        for song in songs:
-            if path is None:
-                self._player.playlist_append(song)
-            else:
-                self._player.playlist_append(os.path.join(path, song))
+        if database:
+            for song in songs:
+                self._player.playlist_append(song[0])
+                self.playlist0.append([song[0]])
+
+        else:
+            # provide values to SQLite DB. [[], []]
+            for song in songs:
+                if path is None:
+                    self._player.playlist_append(song)
+                    self.playlist0.append([song])
+                else:
+                    self._player.playlist_append(os.path.join(path, song))
+                    self.playlist0.append([os.path.join(path, song)])
 
         if self._player.playlist_count > 0:
             if self._threadExecutable:
@@ -71,30 +81,33 @@ class MusicTerminal:
         # bug : continues while the song is on PAUSE (Solved)
 
         while self._player.playlist_count > 0:
-            song = filter(lambda x: "playing" in x.keys(), self._player.playlist)
-            # check if the song is url or path
 
             if self._threadExecutable:
-                songName = os.path.basename(list(song)[0]["filename"])
                 # Get the current time stamp (not the entire time stamp of a song)
                 totaltime = (
                     self._player.time_remaining + self._player.time_pos
                 ) - self._player.time_pos
+                print("wait until", totaltime)
                 exit.wait(timeout=totaltime)  # have to make it wait
-
-                if self.repeat > 0:
+                print("loop stopped")
+                if self.repeat > 0 and self.running:
                     self.repeat -= 1
                 if self.repeat == 0 and self.running:
                     try:
-                        self.remove(0, True) # Delete song from both queues
+                        self.remove(0, True)  # Delete the song from both queues
                     except Exception as err:
                         return err.args[0]
                 if self._player.playlist_count > 0:
-                    self._player.wait_until_playing() # wait until new song doesn't start
+                    self._player.wait_until_playing()  # wait until new song starts
 
         print("here")
         self.stop(False)  # do not terminate
         return True
+
+    def current_song(self):
+        songname = filter(lambda x: "playing" in x, self._player.playlist)
+        songname = os.path.basename(list(songname)[0]["filename"])
+        return songname
 
     def remove(self, index: int, orignal=False):
         if index < 0:
@@ -147,22 +160,50 @@ class MusicTerminal:
         if terminate:
             self._player.terminate()  # stop the thread. Destroys the mpv object
 
+    def playlist_options(self, username: str, options):
+
+        sd = SongDatabase(username)
+
+        def set_playlist(playlist: list) -> None:
+            sd.feed_data(playlist)
+            sd.conn.close()
+
+        def get_playlist() -> list:
+            return sd.retrieve_data()
+            sd.conn.close()
+
+        if options.lower() == "set":
+            return set_playlist
+        elif options.lower() == "get":
+            return get_playlist
+
 
 def player():
 
     musicObj = MusicTerminal(video=False)
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+    username = input(" User : ")
+    try:
+        temp = musicObj.playlist_options(username, "get")()
+        if temp is not None:
+            choice = input(" Wanna listen saved playlist [Y/n] ").lower()
+            if choice == "y":
+                future1 = musicObj.addsong(None, temp, True, executor)
+        del temp
+    except Exception as err:
+        print(err.args[0])
+
     user_input = ""
     while user_input != "no":
         user_input = input(
-            f" [{musicObj.playing_msg}] [Add|Repeat|Terminate|Playlist] : "
+            f" [{musicObj.playing_msg}] [Add|Repeat|Terminate|set playlist] : "
         ).lower()
         if user_input == "add":
             path, song = main()
             if song is None:
                 exit()
             print("Song Added")
-            future1 = musicObj.addsong(path, song, executor)
+            future1 = musicObj.addsong(path, song, False, executor)
 
         if user_input == "terminate":
             musicObj.stop(True)
@@ -173,8 +214,22 @@ def player():
             repeatParam = input(" Enter repeat param : ")
             musicObj.repeat_song(repeatParam)
 
-        if user_input == "playlist":
-            print(musicObj.playlist0)
+        if user_input == "queue":
+            print("[")
+            current = musicObj.current_song()
+            for each_song in musicObj._player.playlist_filenames:
+                each_song = os.path.basename(each_song)
+                if current == each_song:
+                    print("current ", each_song)
+                else:
+                    print("\t", each_song)
+            print("]")
+
+        if user_input == "set playlist":
+            try:
+                musicObj.playlist_options(username, "set")(musicObj.playlist0)
+            except Exception as err:
+                print(err.args[0])
 
     print("exit")
     return musicObj, future1
