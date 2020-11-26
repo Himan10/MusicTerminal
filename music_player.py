@@ -40,10 +40,12 @@ class MusicTerminal:
         else:
             # provide values to SQLite DB. [[], []]
             for song in songs:
-                if path is None:
+                
+                if path is None and song not in self._player.playlist_filenames:
                     self._player.playlist_append(song)
                     self.playlist0.append([song])
-                else:
+
+                elif os.path.join(path, song) not in self._player.playlist_filenames:
                     self._player.playlist_append(os.path.join(path, song))
                     self.playlist0.append([os.path.join(path, song)])
 
@@ -198,6 +200,7 @@ def player():
         user_input = input(
             f" [{musicObj.playing_msg}] [Add|Repeat|Terminate|set playlist] : "
         ).lower()
+
         if user_input == "add":
             path, song = main()
             if song is None:
