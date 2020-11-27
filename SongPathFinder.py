@@ -18,7 +18,7 @@ def _remove_punctuations(string: str) -> str:
     # But i will simply use os.path.basename() to get a filename
     #filename = os.path.basename(string)
     # \s = whitespace, \w = [^A-Za-z0-9]
-    filename = re.sub(r'[\s\W_]', "", string)
+    filename = re.sub(r"(?<!\d)[^A-Za-z0-9,-]", "", string)
     return filename.lower()
 
 
@@ -27,7 +27,7 @@ class SearchSong:
     def __init__(self, songname: str, path=None):
         self.dirpath = "/home/hi-man/Music/"
         self.songname  = songname
-        self.songname2 = _remove_punctuations(songname)
+        self.songname2 = re.sub(r'[\s\W_]', '', songname)
 
     def _yieldOrignalNames(self, path: str):
         """ call me again to get files stored in path """
@@ -49,10 +49,7 @@ class SearchSong:
             # Pause the generator at yield statement
             # until we send something to it or run next()
 
-            temp = ", ".join(
-                str(i) + "-" + _remove_punctuations(orignalSongNames[i])
-                for i in range(0, len(orignalSongNames))
-            )
+            temp = _remove_punctuations(', '.join(str(i)+'-'+orignalSongNames[i] for i in range(0, len(orignalSongNames))))
 
             # Find the songs
             user_input = re.sub(r'[^\s\w]', ' ', user_input).split()
@@ -109,8 +106,8 @@ class SearchSong:
 
         def MatchSong(songname: str, target: str):
             found = True
-            for i in range(0, len(self.songname), 4):
-                if self.songname[i: i + 4] not in target:
+            for i in range(0, len(songname), 4):
+                if songname[i: i + 4] not in target:
                     found = ''
                     break
 
