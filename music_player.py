@@ -45,13 +45,15 @@ class MusicTerminal:
                     self._player.playlist_append(song)
                     self.playlist0.append([song])
 
-                elif os.path.join(path, song) not in self._player.playlist_filenames:
-                    self._player.playlist_append(os.path.join(path, song))
-                    self.playlist0.append([os.path.join(path, song)])
+                elif path is not None:
+                    songpath = os.path.join(path, song)
+                    if songpath not in self._player.playlist_filenames:
+                        self._player.playlist_append(songpath)
+                        self.playlist0.append([songpath])
 
         if self._player.playlist_count > 0:
             if self._threadExecutable:
-                pass
+                return None
             else:
                 future1 = self._play(executor)  # Call it only once or if adding a song
                 return future1  # contains result of another thread
@@ -163,6 +165,7 @@ class MusicTerminal:
             self._player.terminate()  # stop the thread. Destroys the mpv object
 
     def playlist_options(self, username: str, options):
+        """ options : set_playlist | get_playlist """
 
         sd = SongDatabase(username)
 
@@ -206,7 +209,10 @@ def player():
             if song is None:
                 exit()
             print("Song Added")
-            future1 = musicObj.addsong(path, song, False, executor)
+            temp = musicObj.addsong(path, song, False, executor)
+            if temp is not None:
+                future1 = temp
+            del temp
 
         if user_input == "terminate":
             musicObj.stop(True)
