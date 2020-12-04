@@ -169,7 +169,7 @@ class SearchSong:
 
         return youtube_link
 
-def main():
+def findSong():
     # a basic prompt for searching songs
 
     songname = ''
