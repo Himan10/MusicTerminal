@@ -1,4 +1,4 @@
-from tryPython import MusicTerminal
+from music_player import MusicTerminal
 from concurrent.futures import Executor
 
 def music_player():
