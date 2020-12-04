@@ -1,10 +1,12 @@
+import concurrent.futures
 from music_player import MusicTerminal
-from concurrent.futures import Executor
 
-def music_player():
+def prompt():
+
     player = MusicTerminal(video=False, prefix='/')
-    
     username = input(" User : ")
+    future = None
+    
     try:
         saved_playlist = player.playlist(username, "get")()
         if saved_playlist is not None:
@@ -17,7 +19,6 @@ def music_player():
         print(err.args[0])
 
     user_input = ''
-    future = None
     print(f' Use Prefix before command : /command args')
     try:
         while user_input != "no":
@@ -25,10 +26,10 @@ def music_player():
             # only one function will return smth, and it's `add_song`
             # so, we only need to create a var. `future`
             temp = player.process_command(user_input)
-            if isinstance(temp, Executor):
+            if isinstance(temp, concurrent.futures.Future):
                 future = temp
             del temp
     except KeyboardInterrupt:
-        return future
+        return player, future # for testing purpose
     finally:
-        return future
+        return player, future # for testing purpose
