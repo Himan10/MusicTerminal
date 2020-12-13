@@ -27,7 +27,7 @@ class SearchSong:
     def __init__(self, songname: str, path=None):
         self.dirpath = "/home/hi-man/Music/"
         self.songname  = songname
-        self.songname2 = re.sub(r'[\s\W_]', '', songname)
+        self.songname2 = lambda: re.sub(r'[\s\W_]', '', self.songname)
 
     def _yieldOrignalNames(self, path: str):
         """ call me again to get files stored in path """
@@ -115,18 +115,18 @@ class SearchSong:
 
         found = ''
         if not os.path.exists("./cache.txt"):
-            os.system("touch cache.txt")  # execute the shell command
+            os.system("touch cache.txt")  # execute the shell commandi [vulnerable]
 
         if os.path.getsize("./cache.txt") != 0:
             # Perform a scan
             with open("./cache.txt", "r") as file:
                 songdata = json.load(file)
                 try:
-                    return songdata[self.songname2]
+                    return songdata[self.songname2()]
                 except KeyError:
                     # Perform some more scan, not directly access
                     for key in songdata.keys():
-                        found = MatchSong(self.songname2, key)
+                        found = MatchSong(self.songname2(), key)
                         if found is True:
                             found = songdata[key]
                             return found
@@ -159,7 +159,7 @@ class SearchSong:
                     if os.path.getsize("./cache.txt") != 0:
                         data = json.load(file)
 
-                data[self.songname2] = youtube_link
+                data[self.songname2()] = youtube_link
 
                 with open("./cache.txt", "w") as file:
                     json.dump(data, file, indent=4)
@@ -169,7 +169,8 @@ class SearchSong:
 
         return youtube_link
 
-def findSong():
+
+def findone():
     # a basic prompt for searching songs
 
     songname = ''
@@ -185,3 +186,32 @@ def findSong():
             found = searchObj.YoutubeSearch()
 
     return found if isinstance(found, tuple) else (None, found.split())
+
+
+def findmany(delim=','):
+    # a basic prompt for searching all songs at once
+
+    songlist = ''
+    while len(songlist) < 1:
+        songlist = input(' [Names separated by delimeter \',\']\n Enter Names : ').split(delim)
+    
+    data = {None: []}
+    searchObj = SearchSong(songname=None)
+    while songlist:
+        searchObj.songname = songlist.pop().strip()
+        found = searchObj.SearchLocal()
+
+        if None in found:
+            found = searchObj.LoadFromFile()
+            if found == '':
+                found = searchObj.YoutubeSearch()
+            
+            data[None].append(found)
+
+        else:
+            if found[0] in data:
+                data[found[0]].extend(found[1])
+            else:
+                data[found[0]] = found[1]
+
+    return data
