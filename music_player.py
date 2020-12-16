@@ -1,8 +1,5 @@
 import mpv
 from threading import Event
-from threading import Thread
-from threading import enumerate
-from threading import current_thread
 from SongPathFinder import os
 from SongPathFinder import findone, findmany
 from connectToSql import SongDatabase
@@ -228,7 +225,7 @@ class MusicTerminal(InputParser):
     def stop(self, terminate=False):
         # Not working : keep_playlist
         
-        terminate = bool(terminate)
+        terminate = True if terminate == "True" else False
         self._player.stop()
         if self.running and not self._threadStopper.is_set():
             self._threadStopper.set() # set the flag and ends the func. has event.wait()
