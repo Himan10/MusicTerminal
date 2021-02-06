@@ -1,4 +1,4 @@
-import concurrent.futures
+from concurrent.futures import Future
 from music_player import MusicTerminal
 
 def prompt():
@@ -21,15 +21,15 @@ def prompt():
     user_input = ''
     print(f' Use Prefix before command : /command args')
     try:
-        while user_input != "no":
+        while user_input != "no" and not player.core_shutdown():
             user_input = input(f"[{player.playing_msg}] [Add|Repeat|Terminate|playlist set/get] : ").lower()
             # only one function will return smth, and it's `add_song`
             # so, we only need to create a var. `future`
             temp = player.process_command(user_input)
-            if isinstance(temp, concurrent.futures.Future):
+            if isinstance(temp, Future):
                 future = temp
             del temp
     except KeyboardInterrupt:
-        return player, future # for testing purpose
+        return player, future
     finally:
-        return player, future # for testing purpose
+        return player, future
