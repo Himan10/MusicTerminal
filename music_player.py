@@ -30,7 +30,7 @@ class MusicTerminal(InputParser):
         self.playlistpos = 0  # orignal playlist position
         self._player.video = video
         self._player.ytdl = ytdl
-        self.playing_msg = "stopped"
+        self.playing_msg = "idle"
         self.logging = logging
         self.running = False
         self._sema = Semaphore(0)
@@ -38,6 +38,7 @@ class MusicTerminal(InputParser):
         self._threadExecutor = None
         self._threadExecutable = False
         self.repeat = 0
+        self.core_shutdown = lambda : self._player.core_shutdown
 
         if event_thread:
             self._threadExecutor = ThreadPoolExecutor(max_workers=1)
@@ -53,20 +54,18 @@ class MusicTerminal(InputParser):
     @InputParser.command
     def add(self, *arg):
         """ shortcut decorator that invokes
-        1. findSong()
-        2. _addsong()
+        1. _addsong()
 
-        args: possible a thread executor
+        arg: 'many' (find multiple songs)
         """
         if len(arg) >= 1 and arg[0] != "many":
             raise Exception("Usage : /add or /add many")
 
         if arg:
-            # find multiple songs
             result = ""
             getdict = findmany(",")
             for path, songs in getdict.items():
-                if path is not None and songs.__sizeof__() != 40:
+                if path is not None and songs:
                     temp = self._addsong(path, songs, False)
                     if temp is not None:
                         result = temp
@@ -81,12 +80,9 @@ class MusicTerminal(InputParser):
             return self._addsong(path, songs, False)
 
     def _addsong(self, path: str, songs: list, database: bool):
-        """ executor should be an obj of 
-        concurrent.futures.ThreadPoolExecutor """
-
         if database:
-            self.playlistpos = len(songs)
             for song in songs:
+                self.playlistpos += 1
                 self._player.playlist_append(song[0])
                 self.playlist0.append([song[0]])
 
@@ -108,13 +104,13 @@ class MusicTerminal(InputParser):
             if self._threadExecutable:
                 return None
             else:
-                future1 = self._play()  # Call it only once or if adding a song
-                return future1  # contains result of another thread
+                future = self._play()  # Call it only once or if adding a song
+                return future # contains result of another thread
 
     def _play(self):
         """ Shouldn't be executed in main
         State : [play, pause] -> BUSY
-        State : [open, close] -> IDLE
+        State : [open, close] -> IDLE`:
         """
         if self._player.idle_active:
             if self._player.playlist_count > 0:
@@ -122,24 +118,18 @@ class MusicTerminal(InputParser):
                     self._player.playlist_pos = 0
                     self._player.wait_until_playing()  # PAUSE everything until song doesn't get started.
                     self._threadExecutable = True
-                    Future = self._threadExecutor.submit(self._track_song)
+                    future = self._threadExecutor.submit(self._track_song)
 
                 self.playing_msg = "running"
                 self.running = not self._player.idle_active
-                # print(self.running, self._player.idle_active)
-                # print(f"\n == {self.playing_msg} ==\n")
             else:
-                self.playing_msg = "stopped"
+                self.playing_msg = "idle"
                 self.running = self._player.idle_active
 
-        return Future
+        return future
 
-    def _track_song(self):  # Because we want real timestamp updates, not only once.
-        # bug : continues while the song is on PAUSE (Solved)
+    def _track_song(self):
 
-        wait_until_condition = (
-            lambda cond: wait_until_playing() if cond else self._sema.acquire()
-        )
         while self._player.playlist_count > 0:
 
             if self._threadExecutable:
@@ -154,9 +144,9 @@ class MusicTerminal(InputParser):
                     try:
                         self.remove(0, True)  # Delete the song from both queues
                     except Exception as err:
-                        return err.args[0], "Here"
+                        pass
                 if self._player.playlist_count > 0:
-                    wait_until_condition(self.running)
+                    [self._sema.acquire, self._player.wait_until_playing][self.running and True]()
             else:
                 break
 
@@ -243,11 +233,9 @@ class MusicTerminal(InputParser):
             self._threadStopper.set()  # set the flag and ends the func. has event.wait()
         self._player.pause = False
         self.running = False
-        self.playing_msg = "stopped"
+        self.playing_msg = "idle"
         self._threadExecutable = False
         if isinstance(terminate, bool) and terminate is True:
-            if self._threadStopper.is_set():
-                self._threadStopper.clear()
             # stop the thread and destroys the mpv object
             self._player.quit()
             self._player.wait_for_shutdown()
@@ -276,6 +264,7 @@ class MusicTerminal(InputParser):
                 print("   [Current]    ", current)
             else:
                 print("\t\t", songname)
+
         print(" ]\n")
 
     @InputParser.command
