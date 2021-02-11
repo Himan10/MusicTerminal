@@ -4,6 +4,7 @@ from threading import Thread
 from threading import enumerate
 from threading import current_thread
 from threading import Semaphore
+from prettyqueue import prettyprint
 from SongPathFinder import os
 from SongPathFinder import findone, findmany
 from connectToSql import SongDatabase
@@ -146,7 +147,9 @@ class MusicTerminal(InputParser):
                     except Exception as err:
                         pass
                 if self._player.playlist_count > 0:
+                    print('before')
                     [self._sema.acquire, self._player.wait_until_playing][self.running and True]()
+                    print('after')
             else:
                 break
 
@@ -256,16 +259,9 @@ class MusicTerminal(InputParser):
     def queue(self):
         if not self.running and not self._threadExecutable:
             return print("Playlist empty")
-        print("\n [")
         current = self.current(show=False)
-        for songname in self._player.playlist_filenames:
-            songname = os.path.basename(songname)
-            if songname == current:
-                print("   [Current]    ", current)
-            else:
-                print("\t\t", songname)
-
-        print(" ]\n")
+        print('\n')
+        prettyprint(self._player.playlist_filenames, current, self.repeat)
 
     @InputParser.command
     def playlist(self, username: str, options):
