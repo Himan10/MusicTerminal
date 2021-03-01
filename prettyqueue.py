@@ -1,3 +1,24 @@
+# Pretty printing of dir items
+
+import os
+import re
+import json
+from colorama import Fore, Style
+
+def getdirandfile(string):
+    j = 0
+    file_ = ""
+    dirtuple = ("", "")
+    for i in string:
+        if i == "/":
+            j += 1
+        if j == 1:
+            file_ += i
+            continue
+        if j > 1:
+            j = 1
+            dirtuple = (dirtuple[1], file_)
+            file_ = "/"
 
     return dirtuple, file_[1:]
 
@@ -113,7 +134,7 @@ def sortqueue(songs):
         return
 
 
-def prettyprint(songs: list):
+def prettyprint(songs: list, playing="", repeat=0):
     # chr(9500) = '├', chr(9492) = '└', chr(9472) = '─', chr(9474) = '│'
 
     sortqueue(songs)
