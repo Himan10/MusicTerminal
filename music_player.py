@@ -147,9 +147,7 @@ class MusicTerminal(InputParser):
                     except Exception as err:
                         pass
                 if self._player.playlist_count > 0:
-                    print('before')
                     [self._sema.acquire, self._player.wait_until_playing][self.running and True]()
-                    print('after')
             else:
                 break
 
@@ -161,7 +159,7 @@ class MusicTerminal(InputParser):
         if not self._player.playlist:
             return print("Playlist Empty")
         songname = filter(lambda x: "playing" in x, self._player.playlist)
-        songname = os.path.basename(list(songname)[0]["filename"])
+        songname = os.path.basename(next(songname)["filename"])
         return songname if not show else print(songname)
 
     @InputParser.command
@@ -202,7 +200,10 @@ class MusicTerminal(InputParser):
             if str(others) not in "0123456789":
                 raise Exception("Supplied wrong parameters")
             else:
-                self.repeat += int(others) + 1
+                if self.repeat > 0:
+                    self.repeat += int(others)
+                else:
+                    self.repeat += int(others) + 1
 
         self._player.loop_file = others
         print(" current song on repeat")
@@ -238,7 +239,11 @@ class MusicTerminal(InputParser):
         self.running = False
         self.playing_msg = "idle"
         self._threadExecutable = False
-        if isinstance(terminate, bool) and terminate is True:
+
+        if self._sema._value < 1:
+            self._sema.release()
+
+        if terminate:
             # stop the thread and destroys the mpv object
             self._player.quit()
             self._player.wait_for_shutdown()
@@ -252,16 +257,13 @@ class MusicTerminal(InputParser):
         if self._threadStopper.is_set():
             self._threadStopper.clear()  # remove the flag [for re-use]
 
-        if self._sema._value < 1:
-            self._sema.release()
-
     @InputParser.command
     def queue(self):
         if not self.running and not self._threadExecutable:
             return print("Playlist empty")
         current = self.current(show=False)
-        print('\n')
-        prettyprint(self._player.playlist_filenames, current, self.repeat)
+        temp = self._player.playlist_filenames.copy()
+        prettyprint(temp, current, self.repeat)
 
     @InputParser.command
     def playlist(self, username: str, options):
