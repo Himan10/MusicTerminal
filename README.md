@@ -67,7 +67,4 @@
       - **set_playlist** - store the songs onto database
       - **get_playlist** - Retrives the songs from database
 
-
-**Long short story - This is just a fun project to learn new things and challenge me in new ways. There's a lot to add to this project.**
-
-***Stay tuned!!!***
+That's all for this fun little loving project...
